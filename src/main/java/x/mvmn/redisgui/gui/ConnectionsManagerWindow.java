@@ -144,7 +144,7 @@ public class ConnectionsManagerWindow extends JFrame {
 		this.setLayout(new BorderLayout());
 		configPanel.add(SwingUtil.twoComponentPanel(btnSave, btnDelete), BorderLayout.NORTH);
 		configPanel.add(SwingUtil.twoComponentPanel(btnTestConnection, btnConnect), BorderLayout.SOUTH);
-		configPanel.add(new JScrollPane(currentRedisConfig), BorderLayout.CENTER);
+		configPanel.add(currentRedisConfig, BorderLayout.CENTER);
 
 		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true, new JScrollPane(configsList), configPanel);
 		splitPane.setResizeWeight(0.2);

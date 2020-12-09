@@ -4,11 +4,17 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GridLayout;
+import java.awt.LayoutManager;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.text.NumberFormat;
 import java.util.Arrays;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
+import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
+import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -16,6 +22,9 @@ import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.JTextComponent;
 import javax.swing.text.NumberFormatter;
 
 import x.mvmn.redisgui.lang.StackTraceUtil;
@@ -106,7 +115,9 @@ public class SwingUtil {
 
 	public static String getLookAndFeelName(LookAndFeel lnf) {
 		return Arrays.stream(UIManager.getInstalledLookAndFeels())
-				.filter(lnfInfo -> lnfInfo.getClassName().equals(lnf.getClass().getCanonicalName())).map(LookAndFeelInfo::getName).findAny()
+				.filter(lnfInfo -> lnfInfo.getClassName().equals(lnf.getClass().getCanonicalName()))
+				.map(LookAndFeelInfo::getName)
+				.findAny()
 				.orElse(null);
 	}
 
@@ -124,7 +135,9 @@ public class SwingUtil {
 	}
 
 	public static void setLookAndFeel(String lookAndFeelName) {
-		Arrays.stream(UIManager.getInstalledLookAndFeels()).filter(lnf -> lnf.getName().equals(lookAndFeelName)).findAny()
+		Arrays.stream(UIManager.getInstalledLookAndFeels())
+				.filter(lnf -> lnf.getName().equals(lookAndFeelName))
+				.findAny()
 				.ifPresent(lnf -> {
 					try {
 						if (!UIManager.getLookAndFeel().getName().equals(lnf.getName())) {
@@ -135,5 +148,66 @@ public class SwingUtil {
 						showError("Error setting look&feel to " + lookAndFeelName, error);
 					}
 				});
+	}
+
+	public static <T extends JTextComponent> T bind(T textComponent, Consumer<DocumentEvent> listener) {
+		textComponent.getDocument().addDocumentListener(onAnyChange(listener));
+		return textComponent;
+	}
+
+	public static <T extends AbstractButton> T bind(T button, Consumer<Boolean> listener) {
+		button.getModel().addChangeListener(e -> listener.accept(button.isSelected()));
+		return button;
+	}
+
+	public static DocumentListener onAnyChange(Consumer<DocumentEvent> listener) {
+		return new DocumentListener() {
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				listener.accept(e);
+			}
+
+			@Override
+			public void insertUpdate(DocumentEvent e) {
+				listener.accept(e);
+			}
+
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+				listener.accept(e);
+			}
+		};
+	}
+
+	public static class PanelBuilder {
+		private final JPanel panel;
+
+		public PanelBuilder(Function<JPanel, LayoutManager> layoutFactory) {
+			this.panel = new JPanel();
+			this.panel.setLayout(layoutFactory.apply(this.panel));
+		}
+
+		public PanelBuilder add(Component cmp) {
+			this.panel.add(cmp);
+			return this;
+		}
+
+		public PanelBuilder add(Component cmp, Object constraint) {
+			this.panel.add(cmp, constraint);
+			return this;
+		}
+
+		public JPanel panel() {
+			return panel;
+		}
+	}
+
+	public static PanelBuilder panel(Function<JPanel, LayoutManager> layoutFactory) {
+		return new PanelBuilder(layoutFactory);
+	}
+
+	public static <T extends JComponent> T withTitle(T c, String title) {
+		c.setBorder(BorderFactory.createTitledBorder(title));
+		return c;
 	}
 }
