@@ -151,7 +151,20 @@ public class SwingUtil {
 	}
 
 	public static <T extends JTextComponent> T bind(T textComponent, Consumer<DocumentEvent> listener) {
-		textComponent.getDocument().addDocumentListener(onAnyChange(listener));
+		textComponent.getDocument().addDocumentListener(onChange(listener));
+		return textComponent;
+	}
+
+	public static <T extends JTextComponent> T bindNumeric(T textComponent, Consumer<Long> listener) {
+		textComponent.getDocument().addDocumentListener(onChange(e -> {
+			String text = textComponent.getText();
+			if (text != null) {
+				text = text.replaceAll("[^0-9]+", "");
+				if (!text.isEmpty()) {
+					listener.accept(Long.parseLong(text));
+				}
+			}
+		}));
 		return textComponent;
 	}
 
@@ -160,7 +173,7 @@ public class SwingUtil {
 		return button;
 	}
 
-	public static DocumentListener onAnyChange(Consumer<DocumentEvent> listener) {
+	public static DocumentListener onChange(Consumer<DocumentEvent> listener) {
 		return new DocumentListener() {
 			@Override
 			public void removeUpdate(DocumentEvent e) {

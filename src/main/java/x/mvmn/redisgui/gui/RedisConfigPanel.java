@@ -1,13 +1,12 @@
 package x.mvmn.redisgui.gui;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.swing.BorderFactory;
-import javax.swing.Box;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JPanel;
@@ -45,10 +44,11 @@ public class RedisConfigPanel extends JPanel {
 
 	private final JTextField host = SwingUtil.withTitle(new JTextField(), "Host");
 	private final JTextField port = SwingUtil
-			.withTitle(SwingUtil.numericOnlyTextField((long) RedisURI.DEFAULT_REDIS_PORT, 0L, (long) Integer.MAX_VALUE, false), "Port");
+			.withTitle(SwingUtil.numericOnlyTextField((long) RedisURI.DEFAULT_REDIS_PORT, 0L, 65535L, false), "Port");
 	private final JTextField username = SwingUtil.withTitle(new JTextField(), "Username");
 	private final JPasswordField password = SwingUtil.withTitle(new JPasswordField(), "Password");
-	private final JTextField dbNumber = SwingUtil.withTitle(SwingUtil.numericOnlyTextField(0L, 0L, Long.MAX_VALUE, false), "DB number");
+	private final JTextField dbNumber = SwingUtil.withTitle(SwingUtil.numericOnlyTextField(0L, 0L, (long) Integer.MAX_VALUE, false),
+			"DB number");
 	private final JTextField clientName = SwingUtil.withTitle(new JTextField(), "Client name");
 	private final JTextField socket = SwingUtil.withTitle(new JTextField(), "UNIX socket");
 	private final JTextField sentinelMasterId = SwingUtil.withTitle(new JTextField(), "Sentinel master ID");
@@ -85,6 +85,19 @@ public class RedisConfigPanel extends JPanel {
 		cbxConnectionType.setBorder(BorderFactory.createTitledBorder("Connection type"));
 		cbxConnectionType.setSelectedIndex(0);
 		onConnectionTypeChange();
+
+		SwingUtil.bind(host, e -> model.setHost(host.getText()));
+		SwingUtil.bindNumeric(port, v -> model.setPort(v.intValue()));
+		SwingUtil.bind(username, e -> model.setUsername(username.getText()));
+		SwingUtil.bind(password, e -> model.setPassword(password.getPassword()));
+		SwingUtil.bindNumeric(dbNumber, v -> model.setDatabase(v.intValue()));
+		SwingUtil.bind(sentinelMasterId, e -> model.setSentinelMasterId(sentinelMasterId.getText()));
+		SwingUtil.bind(ssl, v -> model.setSsl(v));
+		SwingUtil.bind(verifyPeer, v -> model.setVerifyPeer(v));
+		SwingUtil.bind(tls, v -> model.setStartTls(v));
+		SwingUtil.bind(clientName, v -> model.setClientName(clientName.getText()));
+		SwingUtil.bindNumeric(timeout, v -> model.setTimeout(Duration.ofSeconds(v)));
+		SwingUtil.bind(socket, e -> model.setSocket(socket.getText()));
 
 		this.add(SwingUtil.panel(pnl -> new GridLayout(2, 1)).add(tfRedisUri).add(cbxConnectionType).panel(), BorderLayout.NORTH);
 		this.add(cfgContent, BorderLayout.CENTER);
