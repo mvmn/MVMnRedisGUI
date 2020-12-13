@@ -56,7 +56,7 @@ public class ConnectionsManagerWindow extends JFrame {
 
 	public ConnectionsManagerWindow(FileBackedProperties appConfig, File appHomeFolder, SortedSet<String> existingConnectionConfigs,
 			Consumer<Tuple<RedisURI, ClientResources, Void, Void, Void>> testConnectionHandler,
-			Consumer<Tuple<String, RedisURI, ClientResources, Void, Void>> connectionHandler) {
+			Consumer<Tuple<String, RedisConfigModel, Void, Void, Void>> connectionHandler) {
 		super("MVMn Redis Client GUI");
 		this.appConfig = appConfig;
 		this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -92,7 +92,7 @@ public class ConnectionsManagerWindow extends JFrame {
 			SwingUtil.performSafely(() -> {
 				try {
 					testConnectionHandler.accept(Tuple.<RedisURI, ClientResources, Void, Void, Void> builder()
-							.a(config.getUri())
+							.a(config.toRedisUri())
 							.b(config.getClientResources())
 							.build());
 				} finally {
@@ -104,11 +104,7 @@ public class ConnectionsManagerWindow extends JFrame {
 			String configName = configs.get(currentlySelectedConfig);
 			RedisConfigModel config = currentRedisConfig.getCurrentState();
 			SwingUtil.performSafely(() -> {
-				connectionHandler.accept(Tuple.<String, RedisURI, ClientResources, Void, Void> builder()
-						.a(configName)
-						.b(config.getUri())
-						.c(config.getClientResources())
-						.build());
+				connectionHandler.accept(Tuple.<String, RedisConfigModel, Void, Void, Void> builder().a(configName).b(config).build());
 			});
 		});
 

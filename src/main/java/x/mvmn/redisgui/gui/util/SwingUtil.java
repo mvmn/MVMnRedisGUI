@@ -7,6 +7,7 @@ import java.awt.GridLayout;
 import java.awt.LayoutManager;
 import java.awt.Toolkit;
 import java.awt.Window;
+import java.beans.PropertyChangeEvent;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.function.Consumer;
@@ -17,7 +18,6 @@ import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -100,7 +100,7 @@ public class SwingUtil {
 		return component;
 	}
 
-	public static JTextField numericOnlyTextField(Long initialValue, Long min, Long max, boolean allowNegative) {
+	public static JFormattedTextField numericOnlyTextField(Long initialValue, Long min, Long max, boolean allowNegative) {
 		NumberFormatter formatter = new NumberFormatter(NumberFormat.getInstance());
 		formatter.setValueClass(Long.class);
 		formatter.setMinimum(min != null ? min : (allowNegative ? Long.MIN_VALUE : 0));
@@ -155,6 +155,11 @@ public class SwingUtil {
 		return textComponent;
 	}
 
+	public static <T extends JFormattedTextField> T bind(T ftf, Consumer<PropertyChangeEvent> listener) {
+		ftf.addPropertyChangeListener("value", e -> listener.accept(e));
+		return ftf;
+	}
+
 	public static <T extends JTextComponent> T bindNumeric(T textComponent, Consumer<Long> listener) {
 		textComponent.getDocument().addDocumentListener(onChange(e -> {
 			String text = textComponent.getText();
@@ -169,7 +174,7 @@ public class SwingUtil {
 	}
 
 	public static <T extends AbstractButton> T bind(T button, Consumer<Boolean> listener) {
-		button.getModel().addChangeListener(e -> listener.accept(button.isSelected()));
+		button.addItemListener(e -> listener.accept(button.isSelected()));
 		return button;
 	}
 

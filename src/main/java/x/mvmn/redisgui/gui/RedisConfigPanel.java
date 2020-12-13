@@ -2,6 +2,7 @@ package x.mvmn.redisgui.gui;
 
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
+import java.beans.PropertyChangeEvent;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -9,6 +10,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JFormattedTextField;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
@@ -43,19 +45,19 @@ public class RedisConfigPanel extends JPanel {
 	// timeout _____ | __V__ | _V__ | _V_ | V
 
 	private final JTextField host = SwingUtil.withTitle(new JTextField(), "Host");
-	private final JTextField port = SwingUtil
+	private final JFormattedTextField port = SwingUtil
 			.withTitle(SwingUtil.numericOnlyTextField((long) RedisURI.DEFAULT_REDIS_PORT, 0L, 65535L, false), "Port");
 	private final JTextField username = SwingUtil.withTitle(new JTextField(), "Username");
 	private final JPasswordField password = SwingUtil.withTitle(new JPasswordField(), "Password");
-	private final JTextField dbNumber = SwingUtil.withTitle(SwingUtil.numericOnlyTextField(0L, 0L, (long) Integer.MAX_VALUE, false),
-			"DB number");
+	private final JFormattedTextField dbNumber = SwingUtil
+			.withTitle(SwingUtil.numericOnlyTextField(0L, 0L, (long) Integer.MAX_VALUE, false), "DB number");
 	private final JTextField clientName = SwingUtil.withTitle(new JTextField(), "Client name");
 	private final JTextField socket = SwingUtil.withTitle(new JTextField(), "UNIX socket");
 	private final JTextField sentinelMasterId = SwingUtil.withTitle(new JTextField(), "Sentinel master ID");
 	private final JCheckBox ssl = new JCheckBox("SSL");
 	private final JCheckBox verifyPeer = new JCheckBox("Verify peer");
 	private final JCheckBox tls = new JCheckBox("TLS");
-	private final JTextField timeout = SwingUtil.withTitle(SwingUtil.numericOnlyTextField(60L, 0L, Long.MAX_VALUE, false),
+	private final JFormattedTextField timeout = SwingUtil.withTitle(SwingUtil.numericOnlyTextField(60L, 0L, Long.MAX_VALUE, false),
 			"Timeout (seconds)");
 
 	private final JPanel cfgContent = new JPanel(new BorderLayout());
@@ -75,16 +77,17 @@ public class RedisConfigPanel extends JPanel {
 		clientName.setText(model.getClientName());
 		timeout.setText(String.valueOf(model.getTimeout().getSeconds()));
 
-		Arrays.asList(host, port, username, password, dbNumber, clientName, socket, sentinelMasterId, timeout)
-				.forEach(tf -> SwingUtil.bind(tf, e -> onChange()));
+		Arrays.asList(host, username, password, clientName, socket, sentinelMasterId).forEach(tf -> SwingUtil.bind(tf, e -> onChange()));
+		Arrays.asList(port, dbNumber, timeout).forEach(tf -> SwingUtil.bind(tf, (PropertyChangeEvent e) -> onChange()));
 		Arrays.asList(ssl, verifyPeer, tls).forEach(cb -> SwingUtil.bind(cb, e -> onChange()));
 		cbxConnectionType.addActionListener(e -> onConnectionTypeChange());
 
 		tfRedisUri.setEditable(false);
 		tfRedisUri.setBorder(BorderFactory.createTitledBorder("URI"));
 		cbxConnectionType.setBorder(BorderFactory.createTitledBorder("Connection type"));
-		cbxConnectionType.setSelectedIndex(0);
+		cbxConnectionType.setSelectedItem(model.getConnectionType());
 		onConnectionTypeChange();
+		setNotDirty();
 
 		SwingUtil.bind(host, e -> model.setHost(host.getText()));
 		SwingUtil.bindNumeric(port, v -> model.setPort(v.intValue()));
@@ -163,7 +166,7 @@ public class RedisConfigPanel extends JPanel {
 
 	private void onChange() {
 		try {
-			this.tfRedisUri.setText(model.getUri().toString());
+			this.tfRedisUri.setText(model.toRedisUri().toString());
 		} catch (IllegalArgumentException iae) {
 			this.tfRedisUri.setText(iae.getMessage());
 		}

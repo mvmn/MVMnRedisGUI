@@ -112,7 +112,7 @@ public class RedisConfigModel {
 		}
 	}
 
-	public RedisURI getUri() {
+	public RedisURI toRedisUri() {
 		Builder builder;
 		switch (connectionType) {
 			case STANDALONE:
