@@ -12,6 +12,7 @@ import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
@@ -222,6 +223,10 @@ public class SwingUtil {
 
 	public static PanelBuilder panel(Function<JPanel, LayoutManager> layoutFactory) {
 		return new PanelBuilder(layoutFactory);
+	}
+
+	public static PanelBuilder panel(Supplier<LayoutManager> layoutFactory) {
+		return panel(pnl -> layoutFactory.get());
 	}
 
 	public static <T extends JComponent> T withTitle(T c, String title) {

@@ -2,8 +2,7 @@ package x.mvmn.redisgui.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Container;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
@@ -38,9 +37,20 @@ public class RedisClientGui {
 	private final DefaultListModel<String> keysList = new DefaultListModel<>();
 	private final AtomicReference<String> currentKeyScanCursor = new AtomicReference<>();
 	private final JPanel contentSection;
+	private final JCheckBox cbPaginate;
+	private final JButton btnListKeys;
+	private final JButton btnKeysNextPage;
+	private final JButton btnPut;
 
 	public RedisClientGui(String connectionName, RedisConfigModel config, File appHomeFolder) {
 		this.redisClient = RedisClient.create(config.getClientResources(), config.toRedisUri());
+
+		btnKeysNextPage = new JButton("Next page");
+		btnKeysNextPage.setEnabled(false);
+		cbPaginate = new JCheckBox("Paging (SCAN)", true);
+		cbPaginate.addChangeListener(e -> updateNextPageBtn());
+		btnListKeys = new JButton("List keys");
+		btnPut = new JButton("Put");
 
 		JFrame window = new JFrame(connectionName);
 		Container contentPane = window.getContentPane();
@@ -52,7 +62,7 @@ public class RedisClientGui {
 		contentSection = new JPanel();
 		splitPane.add(contentSection);
 
-		SwingUtil.minPrefWidth(window, 800);
+		SwingUtil.prefSizeRatioOfScreenSize(window, 0.6f);
 		window.pack();
 		SwingUtil.moveToScreenCenter(window);
 		window.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -85,54 +95,71 @@ public class RedisClientGui {
 
 	private JPanel navPanel() {
 		JList<String> jlKeysList = new JList<>(keysList);
-		JPanel pnl = new JPanel(new GridBagLayout());
-		GridBagConstraints gbc = new GridBagConstraints();
-		JButton btnListKeys = new JButton("List keys");
-		JCheckBox cbPaginate = new JCheckBox("Paging (SCAN)", true);
 		JTextField tfListKeysPattern = new JTextField("*");
 		tfListKeysPattern.getDocument().addDocumentListener(SwingUtil.onChange(e -> {
 			btnListKeys.setEnabled(!tfListKeysPattern.getText().isEmpty());
 		}));
 		tfListKeysPattern.setBorder(BorderFactory.createTitledBorder("Pattern"));
 		btnListKeys.addActionListener(e -> {
+			btnListKeys.setEnabled(false);
+			btnKeysNextPage.setEnabled(false);
 			String pattern = tfListKeysPattern.getText();
 			boolean scan = cbPaginate.isSelected();
+			SwingUtil.performSafely(() -> {
+				try {
+					List<String> redisKeys;
+					try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
+						String newCursor = null;
+						if (scan) {
+							KeyScanCursor<String> result = connection.sync().scan(ScanArgs.Builder.matches(pattern));
+							redisKeys = result.getKeys();
+							newCursor = result.getCursor();
+						} else {
+							redisKeys = connection.sync().keys(pattern);
+						}
+						currentKeyScanCursor.set(newCursor);
+					}
+					setKeyList(redisKeys);
+				} finally {
+					btnListKeys.setEnabled(true);
+					updateNextPageBtn();
+				}
+			});
+		});
+		btnKeysNextPage.addActionListener(e -> {
+			btnListKeys.setEnabled(false);
+			btnKeysNextPage.setEnabled(false);
 			String cursor = currentKeyScanCursor.get();
 			SwingUtil.performSafely(() -> {
-				List<String> redisKeys;
-				try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
-					if (scan) {
-						KeyScanCursor<String> result = cursor != null
-								? connection.sync().scan(ScanCursor.of(cursor), ScanArgs.Builder.matches(pattern))
-								: connection.sync().scan(ScanArgs.Builder.matches(pattern));
+				try {
+					List<String> redisKeys;
+					try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
+						KeyScanCursor<String> result = connection.sync().scan(ScanCursor.of(cursor));
 						redisKeys = result.getKeys();
 						currentKeyScanCursor.set(result.getCursor());
-					} else {
-						redisKeys = connection.sync().keys(pattern);
 					}
+					setKeyList(redisKeys);
+				} finally {
+					btnListKeys.setEnabled(true);
+					updateNextPageBtn();
 				}
-				setKeyList(redisKeys);
 			});
 		});
 
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-		gbc.ipadx = 1;
-		gbc.ipady = 1;
-		gbc.gridx = 0;
-		gbc.gridy = 0;
-		pnl.add(tfListKeysPattern, gbc);
-		gbc.gridx = 1;
-		gbc.gridy = 0;
-		pnl.add(btnListKeys, gbc);
-		gbc.gridx = 0;
-		gbc.gridy = 1;
-		pnl.add(cbPaginate, gbc);
-		gbc.gridx = 0;
-		gbc.gridy = 2;
-		gbc.gridwidth = 2;
-		gbc.fill = GridBagConstraints.BOTH;
-		pnl.add(new JScrollPane(jlKeysList), gbc);
-		return pnl;
+		return SwingUtil.panel(BorderLayout::new)
+				.add(SwingUtil.panel(BorderLayout::new)
+						.add(SwingUtil.panel(v -> new GridLayout(2, 1)).add(btnListKeys).add(btnKeysNextPage).panel(), BorderLayout.NORTH)
+						.add(tfListKeysPattern, BorderLayout.CENTER)
+						.add(cbPaginate, BorderLayout.SOUTH)
+						.panel(), BorderLayout.NORTH)
+				.add(new JScrollPane(jlKeysList), BorderLayout.CENTER)
+				.add(btnPut, BorderLayout.SOUTH)
+				.panel();
+	}
+
+	private void updateNextPageBtn() {
+		String cursor = currentKeyScanCursor.get();
+		btnKeysNextPage.setEnabled(cbPaginate.isSelected() && cursor != null && !"0".equals(cursor));
 	}
 
 	private void setKeyList(List<String> redisKeys) {
