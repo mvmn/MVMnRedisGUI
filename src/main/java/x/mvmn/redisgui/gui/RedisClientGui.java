@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.GridLayout;
 import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,6 +18,7 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
@@ -28,6 +28,7 @@ import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.api.StatefulRedisConnection;
 import reactor.core.publisher.Mono;
+import x.mvmn.redisgui.gui.util.DefaultWindowListener;
 import x.mvmn.redisgui.gui.util.SwingUtil;
 import x.mvmn.redisgui.model.RedisConfigModel;
 
@@ -59,46 +60,33 @@ public class RedisClientGui {
 		contentPane.add(splitPane, BorderLayout.CENTER);
 
 		splitPane.add(navPanel());
-		contentSection = new JPanel();
+		contentSection = new JPanel(new BorderLayout());
 		splitPane.add(contentSection);
 
 		SwingUtil.prefSizeRatioOfScreenSize(window, 0.6f);
 		window.pack();
 		SwingUtil.moveToScreenCenter(window);
 		window.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		window.addWindowListener(new WindowListener() {
-			@Override
-			public void windowOpened(WindowEvent e) {}
-
-			@Override
-			public void windowIconified(WindowEvent e) {}
-
-			@Override
-			public void windowDeiconified(WindowEvent e) {}
-
-			@Override
-			public void windowDeactivated(WindowEvent e) {}
-
+		window.addWindowListener(new DefaultWindowListener() {
 			@Override
 			public void windowClosing(WindowEvent e) {
-				redisClient.shutdown();
+				try {
+					redisClient.shutdown();
+					redisClient.getResources().shutdown();
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
 			}
-
-			@Override
-			public void windowClosed(WindowEvent e) {}
-
-			@Override
-			public void windowActivated(WindowEvent e) {}
 		});
 		window.setVisible(true);
+		info();
 	}
 
 	private JPanel navPanel() {
 		JList<String> jlKeysList = new JList<>(keysList);
 		JTextField tfListKeysPattern = new JTextField("*");
-		tfListKeysPattern.getDocument().addDocumentListener(SwingUtil.onChange(e -> {
-			btnListKeys.setEnabled(!tfListKeysPattern.getText().isEmpty());
-		}));
+		tfListKeysPattern.getDocument()
+				.addDocumentListener(SwingUtil.onChange(e -> btnListKeys.setEnabled(!tfListKeysPattern.getText().isEmpty())));
 		tfListKeysPattern.setBorder(BorderFactory.createTitledBorder("Pattern"));
 		btnListKeys.addActionListener(e -> {
 			btnListKeys.setEnabled(false);
@@ -170,15 +158,20 @@ public class RedisClientGui {
 		});
 	}
 
-	public void connect() {
+	public void info() {
 		SwingUtil.performSafely(() -> {
 			// Perform ping as a test
 			StatefulRedisConnection<String, String> connection = redisClient.connect();
 			Mono<String> info = connection.reactive().info();
 			Mono<Long> keyCount = connection.reactive().dbsize();
-
-			System.out.println("Key count: " + keyCount.block());
-			System.out.println("Info: " + info.block());
+			String text = "Key count: " + keyCount.block() + "\n\nInfo: " + info.block();
+			SwingUtilities.invokeLater(() -> {
+				contentSection.removeAll();
+				contentSection.add(new JScrollPane(new JTextArea(text)), BorderLayout.CENTER);
+				contentSection.invalidate();
+				contentSection.revalidate();
+				contentSection.repaint();
+			});
 		});
 	}
 }
