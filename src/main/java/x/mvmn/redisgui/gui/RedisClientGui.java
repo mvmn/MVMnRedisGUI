@@ -3,6 +3,8 @@ package x.mvmn.redisgui.gui;
 import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.GridLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.util.List;
@@ -27,6 +29,7 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.sync.RedisCommands;
 import reactor.core.publisher.Mono;
 import x.mvmn.redisgui.gui.util.DefaultWindowListener;
 import x.mvmn.redisgui.gui.util.SwingUtil;
@@ -84,6 +87,33 @@ public class RedisClientGui {
 
 	private JPanel navPanel() {
 		JList<String> jlKeysList = new JList<>(keysList);
+		jlKeysList.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (e.getClickCount() >= 2) {
+					int selectedKey = jlKeysList.getSelectedIndex();
+					if (selectedKey >= 0 && selectedKey < keysList.size()) {
+						String key = keysList.get(selectedKey);
+						SwingUtil.performSafely(() -> {
+							try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
+								RedisCommands<String, String> syncConn = connection.sync();
+								String keyTypeStr = syncConn.type(key);
+								Long ttl = syncConn.ttl(key);
+								SwingUtilities.invokeLater(() -> {
+									contentSection.removeAll();
+									contentSection.add(
+											new JScrollPane(new JTextArea("Key [" + key + "] type " + keyTypeStr + ". TTL: " + ttl)),
+											BorderLayout.CENTER);
+									contentSection.invalidate();
+									contentSection.revalidate();
+									contentSection.repaint();
+								});
+							}
+						});
+					}
+				}
+			}
+		});
 		JTextField tfListKeysPattern = new JTextField("*");
 		tfListKeysPattern.getDocument()
 				.addDocumentListener(SwingUtil.onChange(e -> btnListKeys.setEnabled(!tfListKeysPattern.getText().isEmpty())));
