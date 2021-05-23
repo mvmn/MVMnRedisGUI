@@ -30,7 +30,6 @@ import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
-import reactor.core.publisher.Mono;
 import x.mvmn.redisgui.gui.util.DefaultWindowListener;
 import x.mvmn.redisgui.gui.util.SwingUtil;
 import x.mvmn.redisgui.model.RedisConfigModel;
@@ -45,6 +44,9 @@ public class RedisClientGui {
 	private final JButton btnListKeys;
 	private final JButton btnKeysNextPage;
 	private final JButton btnPut;
+	private final JTextField tfKeyCount = new JTextField("n/a");
+	private final JButton btnGetKeyCount = new JButton("Get");
+	private final JButton btnGetServerInfo = new JButton("Get server info");
 
 	public RedisClientGui(String connectionName, RedisConfigModel config, File appHomeFolder) {
 		this.redisClient = RedisClient.create(config.getClientResources(), config.toRedisUri());
@@ -78,11 +80,13 @@ public class RedisClientGui {
 					redisClient.getResources().shutdown();
 				} catch (Exception ex) {
 					ex.printStackTrace();
+					SwingUtil.showError("Error shutting down Redis client", ex);
 				}
 			}
 		});
 		window.setVisible(true);
-		info();
+		SwingUtilities.invokeLater(() -> refreshKeyCount());
+		SwingUtilities.invokeLater(() -> showServerInfo());
 	}
 
 	private JPanel navPanel() {
@@ -124,55 +128,87 @@ public class RedisClientGui {
 			String pattern = tfListKeysPattern.getText();
 			boolean scan = cbPaginate.isSelected();
 			SwingUtil.performSafely(() -> {
-				try {
-					List<String> redisKeys;
-					try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
-						String newCursor = null;
-						if (scan) {
-							KeyScanCursor<String> result = connection.sync().scan(ScanArgs.Builder.matches(pattern));
-							redisKeys = result.getKeys();
-							newCursor = result.getCursor();
-						} else {
-							redisKeys = connection.sync().keys(pattern);
-						}
-						currentKeyScanCursor.set(newCursor);
+				List<String> redisKeys;
+				try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
+					String newCursor = null;
+					if (scan) {
+						KeyScanCursor<String> result = connection.sync().scan(ScanArgs.Builder.matches(pattern));
+						redisKeys = result.getKeys();
+						newCursor = result.getCursor();
+					} else {
+						redisKeys = connection.sync().keys(pattern);
 					}
-					setKeyList(redisKeys);
-				} finally {
-					btnListKeys.setEnabled(true);
-					updateNextPageBtn();
+					currentKeyScanCursor.set(newCursor);
 				}
-			});
+				setKeyList(redisKeys);
+
+			}, () -> SwingUtilities.invokeLater(() -> {
+				btnListKeys.setEnabled(true);
+				updateNextPageBtn();
+			}));
 		});
 		btnKeysNextPage.addActionListener(e -> {
 			btnListKeys.setEnabled(false);
 			btnKeysNextPage.setEnabled(false);
 			String cursor = currentKeyScanCursor.get();
 			SwingUtil.performSafely(() -> {
-				try {
-					List<String> redisKeys;
-					try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
-						KeyScanCursor<String> result = connection.sync().scan(ScanCursor.of(cursor));
-						redisKeys = result.getKeys();
-						currentKeyScanCursor.set(result.getCursor());
-					}
-					setKeyList(redisKeys);
-				} finally {
-					btnListKeys.setEnabled(true);
-					updateNextPageBtn();
+				List<String> redisKeys;
+				try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
+					KeyScanCursor<String> result = connection.sync().scan(ScanCursor.of(cursor));
+					redisKeys = result.getKeys();
+					currentKeyScanCursor.set(result.getCursor());
 				}
-			});
+				setKeyList(redisKeys);
+			}, () -> SwingUtilities.invokeLater(() -> {
+				btnListKeys.setEnabled(true);
+				updateNextPageBtn();
+			}));
 		});
 
+		tfKeyCount.setEditable(false);
+		tfKeyCount.setBorder(BorderFactory.createTitledBorder("Key count"));
+		btnGetKeyCount.addActionListener(e -> refreshKeyCount());
+
+		btnGetServerInfo.addActionListener(e -> showServerInfo());
+
 		return SwingUtil.panel(BorderLayout::new)
-				.add(SwingUtil.panel(BorderLayout::new)
-						.add(SwingUtil.panel(v -> new GridLayout(2, 1)).add(btnListKeys).add(btnKeysNextPage).panel(), BorderLayout.NORTH)
-						.add(tfListKeysPattern, BorderLayout.CENTER)
-						.add(cbPaginate, BorderLayout.SOUTH)
+				.add(SwingUtil.panel(v -> new GridLayout(3, 2))
+						.add(tfKeyCount)
+						.add(btnGetKeyCount)
+						.add(tfListKeysPattern)
+						.add(btnListKeys)
+						.add(cbPaginate, BorderLayout.CENTER)
+						.add(btnKeysNextPage, BorderLayout.SOUTH)
 						.panel(), BorderLayout.NORTH)
 				.add(new JScrollPane(jlKeysList), BorderLayout.CENTER)
-				.add(btnPut, BorderLayout.SOUTH)
+				.add(SwingUtil.panel(v -> new GridLayout(2, 1)).add(btnPut).add(btnGetServerInfo).panel(), BorderLayout.SOUTH)
 				.panel();
+	}
+
+	private void refreshKeyCount() {
+		btnGetKeyCount.setEnabled(false);
+		SwingUtil.performSafely(() -> {
+			try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
+				System.out.println("Getting DB size");
+				Long keyCount = connection.sync().dbsize();
+				System.out.println("Got DB size");
+				if (keyCount != null) {
+					SwingUtilities.invokeLater(() -> {
+						tfKeyCount.setText(keyCount.toString());
+						System.out.println("Got DB size - set text");
+						tfKeyCount.invalidate();
+						System.out.println("Got DB size - invalidate");
+					});
+				}
+			}
+		}, () -> {
+			System.out.println("Got DB size - finally");
+			SwingUtilities.invokeLater(() -> {
+				System.out.println("Got DB size - setting btn enabled");
+				btnGetKeyCount.setEnabled(true);
+				System.out.println("Got DB size - set btn enabled");
+			});
+		});
 	}
 
 	private void updateNextPageBtn() {
@@ -188,20 +224,23 @@ public class RedisClientGui {
 		});
 	}
 
-	public void info() {
+	public void showServerInfo() {
+		btnGetServerInfo.setEnabled(false);
 		SwingUtil.performSafely(() -> {
-			// Perform ping as a test
-			StatefulRedisConnection<String, String> connection = redisClient.connect();
-			Mono<String> info = connection.reactive().info();
-			Mono<Long> keyCount = connection.reactive().dbsize();
-			String text = "Key count: " + keyCount.block() + "\n\nInfo: " + info.block();
-			SwingUtilities.invokeLater(() -> {
-				contentSection.removeAll();
-				contentSection.add(new JScrollPane(new JTextArea(text)), BorderLayout.CENTER);
-				contentSection.invalidate();
-				contentSection.revalidate();
-				contentSection.repaint();
-			});
-		});
+			try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
+				System.out.println("Getting server info");
+				String info = connection.sync().info();
+				System.out.println("Got server info");
+				SwingUtilities.invokeLater(() -> {
+					contentSection.removeAll();
+					JTextArea txa = new JTextArea(info);
+					txa.setEditable(false);
+					contentSection.add(new JScrollPane(txa), BorderLayout.CENTER);
+					contentSection.invalidate();
+					contentSection.revalidate();
+					contentSection.repaint();
+				});
+			}
+		}, () -> SwingUtilities.invokeLater(() -> btnGetServerInfo.setEnabled(true)));
 	}
 }

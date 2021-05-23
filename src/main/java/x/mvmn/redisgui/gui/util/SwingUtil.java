@@ -36,29 +36,33 @@ public class SwingUtil {
 	protected static ErrorMessageDialog errorMessageDialog = new ErrorMessageDialog(null);
 
 	public static void performSafely(final UnsafeOperation operation) {
-		new Thread(new Runnable() {
-			public void run() {
-				try {
-					operation.run();
-				} catch (final Exception e) {
-					e.printStackTrace();
-					SwingUtilities.invokeLater(new Runnable() {
-						public void run() {
-							errorMessageDialog.show(null, "Error occurred: " + e.getClass().getName() + " " + e.getMessage(),
-									StackTraceUtil.toString(e));
-						}
-					});
-				}
+		new Thread(() -> {
+			try {
+				operation.run();
+			} catch (final Exception e) {
+				e.printStackTrace();
+				showError("Error occurred: ", e);
+			}
+		}).start();
+	}
+
+	public static void performSafely(final UnsafeOperation operation, final Runnable finalOp) {
+		new Thread(() -> {
+			try {
+				operation.run();
+			} catch (final Exception e) {
+				System.out.println("exception");
+				e.printStackTrace();
+				showError("Error occurred: ", e);
+			} finally {
+				finalOp.run();
 			}
 		}).start();
 	}
 
 	public static void showError(final String message, final Throwable e) {
-		SwingUtilities.invokeLater(new Runnable() {
-			public void run() {
-				errorMessageDialog.show(null, message + ": " + e.getClass().getName() + " " + e.getMessage(), StackTraceUtil.toString(e));
-			}
-		});
+		SwingUtilities.invokeLater(() -> errorMessageDialog.show(null, message + ": " + e.getClass().getName() + " " + e.getMessage(),
+				StackTraceUtil.toString(e)));
 	}
 
 	public static void moveToScreenCenter(final Component component) {
