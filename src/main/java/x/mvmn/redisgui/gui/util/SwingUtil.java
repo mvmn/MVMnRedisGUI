@@ -46,16 +46,19 @@ public class SwingUtil {
 		}).start();
 	}
 
-	public static void performSafely(final UnsafeOperation operation, final Runnable finalOp) {
+	public static void performSafely(final UnsafeOperation operation, final Runnable finalOp, boolean finalOpSwingThread) {
 		new Thread(() -> {
 			try {
 				operation.run();
 			} catch (final Exception e) {
-				System.out.println("exception");
 				e.printStackTrace();
 				showError("Error occurred: ", e);
 			} finally {
-				finalOp.run();
+				if (finalOpSwingThread) {
+					SwingUtilities.invokeLater(finalOp);
+				} else {
+					finalOp.run();
+				}
 			}
 		}).start();
 	}

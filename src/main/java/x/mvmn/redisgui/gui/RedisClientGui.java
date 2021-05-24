@@ -142,10 +142,10 @@ public class RedisClientGui {
 				}
 				setKeyList(redisKeys);
 
-			}, () -> SwingUtilities.invokeLater(() -> {
+			}, () -> {
 				btnListKeys.setEnabled(true);
 				updateNextPageBtn();
-			}));
+			}, true);
 		});
 		btnKeysNextPage.addActionListener(e -> {
 			btnListKeys.setEnabled(false);
@@ -159,10 +159,10 @@ public class RedisClientGui {
 					currentKeyScanCursor.set(result.getCursor());
 				}
 				setKeyList(redisKeys);
-			}, () -> SwingUtilities.invokeLater(() -> {
+			}, () -> {
 				btnListKeys.setEnabled(true);
 				updateNextPageBtn();
-			}));
+			}, true);
 		});
 
 		tfKeyCount.setEditable(false);
@@ -189,26 +189,15 @@ public class RedisClientGui {
 		btnGetKeyCount.setEnabled(false);
 		SwingUtil.performSafely(() -> {
 			try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
-				System.out.println("Getting DB size");
 				Long keyCount = connection.sync().dbsize();
-				System.out.println("Got DB size");
 				if (keyCount != null) {
 					SwingUtilities.invokeLater(() -> {
 						tfKeyCount.setText(keyCount.toString());
-						System.out.println("Got DB size - set text");
 						tfKeyCount.invalidate();
-						System.out.println("Got DB size - invalidate");
 					});
 				}
 			}
-		}, () -> {
-			System.out.println("Got DB size - finally");
-			SwingUtilities.invokeLater(() -> {
-				System.out.println("Got DB size - setting btn enabled");
-				btnGetKeyCount.setEnabled(true);
-				System.out.println("Got DB size - set btn enabled");
-			});
-		});
+		}, () -> btnGetKeyCount.setEnabled(true), true);
 	}
 
 	private void updateNextPageBtn() {
@@ -228,9 +217,7 @@ public class RedisClientGui {
 		btnGetServerInfo.setEnabled(false);
 		SwingUtil.performSafely(() -> {
 			try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
-				System.out.println("Getting server info");
 				String info = connection.sync().info();
-				System.out.println("Got server info");
 				SwingUtilities.invokeLater(() -> {
 					contentSection.removeAll();
 					JTextArea txa = new JTextArea(info);
@@ -241,6 +228,6 @@ public class RedisClientGui {
 					contentSection.repaint();
 				});
 			}
-		}, () -> SwingUtilities.invokeLater(() -> btnGetServerInfo.setEnabled(true)));
+		}, () -> btnGetServerInfo.setEnabled(true), true);
 	}
 }
