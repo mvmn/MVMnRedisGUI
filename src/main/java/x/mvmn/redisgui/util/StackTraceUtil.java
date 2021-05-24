@@ -1,4 +1,4 @@
-package x.mvmn.redisgui.lang;
+package x.mvmn.redisgui.util;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

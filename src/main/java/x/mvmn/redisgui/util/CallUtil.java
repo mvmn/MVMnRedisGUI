@@ -1,6 +1,9 @@
-package x.mvmn.redisgui.lang;
+package x.mvmn.redisgui.util;
 
 import java.util.function.Consumer;
+
+import x.mvmn.redisgui.lang.UnsafeConsumer;
+import x.mvmn.redisgui.lang.UnsafeOperation;
 
 public class CallUtil {
 

@@ -28,8 +28,8 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import javax.swing.text.NumberFormatter;
 
-import x.mvmn.redisgui.lang.StackTraceUtil;
 import x.mvmn.redisgui.lang.UnsafeOperation;
+import x.mvmn.redisgui.util.StackTraceUtil;
 
 public class SwingUtil {
 

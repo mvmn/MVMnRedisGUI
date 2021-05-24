@@ -1,4 +1,4 @@
-package x.mvmn.redisgui.lang;
+package x.mvmn.redisgui.util;
 
 public class LangUtil {
 

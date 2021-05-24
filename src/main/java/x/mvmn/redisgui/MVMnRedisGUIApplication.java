@@ -22,8 +22,8 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import x.mvmn.redisgui.gui.ConnectionsManagerWindow;
 import x.mvmn.redisgui.gui.RedisClientGui;
 import x.mvmn.redisgui.gui.util.SwingUtil;
-import x.mvmn.redisgui.lang.CallUtil;
 import x.mvmn.redisgui.model.RedisConfigModel;
+import x.mvmn.redisgui.util.CallUtil;
 import x.mvmn.redisgui.util.FileBackedProperties;
 
 public class MVMnRedisGUIApplication {

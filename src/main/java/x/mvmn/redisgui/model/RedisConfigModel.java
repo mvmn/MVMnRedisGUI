@@ -10,8 +10,8 @@ import java.util.stream.Stream;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.RedisURI.Builder;
 import io.lettuce.core.resource.ClientResources;
-import x.mvmn.redisgui.lang.LangUtil;
 import x.mvmn.redisgui.lang.Tuple;
+import x.mvmn.redisgui.util.LangUtil;
 
 public class RedisConfigModel {
 
